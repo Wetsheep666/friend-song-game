@@ -2,6 +2,10 @@
 
 第一人稱像素網頁遊戲原型。從租屋處出發，依序拜訪六位朋友，再到新店王17家錄音、混音，最後點擊藍牙喇叭聽歌。
 
+**[直接玩遊戲](https://wetsheep666.github.io/friend-song-game/)** · [GitHub 原始碼](https://github.com/Wetsheep666/friend-song-game) · [自動部署狀態](https://github.com/Wetsheep666/friend-song-game/actions)
+
+![遊戲首頁](output/screenshots/published-home.jpg)
+
 ## 在電腦啟動
 
 需要 Node.js 24 LTS。於專案資料夾執行：
@@ -58,7 +62,7 @@ Workflow 使用 Node 24，依序安裝、執行邏輯測試、建置、部署 `d
 
 GitHub Pages 的網站與音訊是靜態公開資源。「通關才能聽歌」是介面流程，不是保密或數位版權保護；尚不能公開的新歌請先保留替代音訊。
 
-目前交付包含部署設定；只有實際 workflow 成功並取得網址後，才算已上線。
+原型已透過 GitHub Actions 成功上線。推送到 `main` 後會自動重新測試、建置與發布。
 
 ## 驗證與結構
 

@@ -30,7 +30,7 @@ const $ = <T extends HTMLElement = HTMLElement>(s: string) => document.querySele
 const html = (s: string) => s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
 let p = freshProgress();
 let saveAvailable = true;
-try { const saved = readProgress(localStorage.getItem(SAVE_KEY)); if (saved) { p = saved; $('#continue-game').hidden = false; } } catch { saveAvailable = false; }
+try { const saved = readProgress(localStorage.getItem(SAVE_KEY)); if (saved && (saved.seconds > 0 || saved.chapter > 0 || saved.talked || saved.done)) { p = saved; $('#continue-game').hidden = false; } } catch { saveAvailable = false; }
 let world: World;
 let started = false, modalOpen = false, modalKind = '', cleanupModal: (() => void) | undefined;
 let previousFocus: HTMLElement | null = null;
@@ -206,7 +206,7 @@ window.addEventListener('keyup', e => keys.delete(e.code));
 window.addEventListener('blur', () => { clearInputs(); if (started && modalKind !== 'pause') pause(); });
 document.addEventListener('visibilitychange', () => { if (document.hidden && started) pause(); });
 window.addEventListener('resize', () => { if (started && portraitMode() && modalKind !== 'pause') pause(); });
-window.addEventListener('pagehide', save);
+window.addEventListener('pagehide', () => { if (started) save(); });
 
 let lookPointer: number | null = null, lastX = 0, lastY = 0;
 function setupLook(element: HTMLElement, mouse: boolean) {
