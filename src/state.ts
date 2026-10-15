@@ -33,6 +33,14 @@ export function advanceChapter(p: Progress): Progress {
   if (!p.done || p.chapter === 7) return p;
   return { ...freshProgress(), chapter: p.chapter + 1, seconds: p.seconds, visited: [...p.visited] };
 }
+export const ERRAND_ITEM = 'bohem-no4';
+export function purchaseErrand(p: Progress): Progress {
+  if (p.chapter !== 1 || !p.talked || p.done || p.collected.includes(ERRAND_ITEM)) return p;
+  return { ...p, collected: [...p.collected, ERRAND_ITEM] };
+}
+export function canDeliverErrand(p: Progress): boolean {
+  return p.chapter === 1 && p.talked && !p.done && p.collected.includes(ERRAND_ITEM);
+}
 export function matchOrder(actual: readonly (string | number)[], expected: readonly (string | number)[]): boolean {
   return actual.length === expected.length && actual.every((x, i) => x === expected[i]);
 }

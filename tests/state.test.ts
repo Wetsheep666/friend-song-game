@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { advanceChapter, completeChapter, freshProgress, matchOrder, readProgress, rhythmWindow, validMix } from '../src/state.ts';
+import { advanceChapter, completeChapter, freshProgress, matchOrder, readProgress, rhythmWindow, validMix, purchaseErrand, canDeliverErrand, ERRAND_ITEM } from '../src/state.ts';
 
 test('locked doors cannot advance; seven friends are visited once in a complete run', () => {
   let p = freshProgress();
@@ -34,4 +34,30 @@ test('mix tolerance boundaries and rhythm assistance work', () => {
   assert.equal(validMix([NaN, 40, 55], [65, 40, 55]), false);
   assert.equal(validMix([65, 40], [65, 40, 55]), false);
   assert.ok(rhythmWindow(2) > rhythmWindow(0)); assert.equal(rhythmWindow(100), .38);
+});
+
+test('park errand requires conversation, purchase and returning to the friend', () => {
+  let p = { ...freshProgress(), chapter: 1 };
+  assert.equal(purchaseErrand(p), p);
+  assert.equal(canDeliverErrand(p), false);
+  p.talked = true;
+  assert.equal(canDeliverErrand(p), false);
+  p = purchaseErrand(p);
+  assert.deepEqual(p.collected, [ERRAND_ITEM]);
+  assert.equal(p.done, false);
+  assert.equal(advanceChapter(p), p);
+  assert.equal(purchaseErrand(p), p);
+  p = readProgress(JSON.stringify(p))!;
+  assert.equal(canDeliverErrand(p), true);
+  p = completeChapter(p);
+  assert.equal(canDeliverErrand(p), false);
+  assert.equal(purchaseErrand(p), p);
+  assert.equal(advanceChapter(p).chapter, 2);
+  assert.equal(purchaseErrand(freshProgress()).collected.length, 0);
+});
+
+test('old first-stop items cannot satisfy the new delivery', () => {
+  const p = { ...freshProgress(), chapter: 1, talked: true, collected: ['headphones', 'ticket', 'usb'] };
+  assert.equal(canDeliverErrand(p), false);
+  assert.equal(canDeliverErrand(purchaseErrand(p)), true);
 });

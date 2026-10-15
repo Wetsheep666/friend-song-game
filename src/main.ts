@@ -1,6 +1,6 @@
 import './style.css';
-import { assetUrl, chapters, gameConfig } from './content';
-import { advanceChapter, completeChapter, freshProgress, readProgress, SAVE_KEY } from './state';
+import { assetUrl, chapters, gameConfig, groupChat } from './content';
+import { advanceChapter, completeChapter, freshProgress, readProgress, SAVE_KEY, ERRAND_ITEM, purchaseErrand, canDeliverErrand } from './state';
 import { mountPuzzle, tone } from './puzzles';
 import { World } from './world';
 
@@ -64,7 +64,7 @@ function updateHud() {
   const c = chapters[p.chapter];
   $('#chapter-number').textContent = p.chapter === 0 ? 'PROLOGUE · 出發之前' : `CHAPTER 0${p.chapter} / 07`;
   $('#place').textContent = c.place;
-  $('#objective').textContent = p.done ? (p.chapter === 7 ? '混音完成！走到藍牙喇叭旁，點開今天的歌。' : '這一站完成了。可以再聊聊，或從門口前往下一站。') : p.chapter === 1 && p.talked ? `找到耳機、車票和隨身碟（${p.collected.length} / 3）` : p.chapter === 7 && p.recorded ? '錄音收好了。到右前方工作桌完成混音。' : c.objective;
+  $('#objective').textContent = p.done ? (p.chapter === 7 ? '混音完成！走到藍牙喇叭旁，點開今天的歌。' : '這一站完成了。可以再聊聊，或從出口前往下一站。') : p.chapter === 1 && p.talked ? (p.collected.includes(ERRAND_ITEM) ? '已拿到寶亨四號。回公園長椅旁交給李韋得。' : '沿步道走到 seven，進店到櫃檯買寶亨四號。') : p.chapter === 7 && p.recorded ? '錄音收好了。到前方混音工作桌完成混音。' : c.objective;
   $('#friend-dots').innerHTML = chapters.slice(1).map((c, i) => `<i title="${html(c.name)}" class="${p.visited.includes(i + 1) ? 'done' : ''} ${p.chapter === i + 1 ? 'current' : ''}">${p.visited.includes(i + 1) ? '✓' : i + 1}</i>`).join('');
   for (const id of p.collected) world.hide(id);
   if (p.chapter === 0 && p.done) world.hide('key');
@@ -84,6 +84,16 @@ function showIntro() {
   body.querySelector('#intro-start')!.addEventListener('click', closeModal);
 }
 function talk() {
+  if (p.chapter === 0) {
+    const body = showModal('前一天晚上 · 群組訊息', '<div class="group-chat">' + groupChat.map(m => '<div class="chat-message ' + (m.sender === '我' ? 'mine' : '') + '"><small>' + html(m.sender) + '</small><p>' + html(m.text) + '</p></div>').join('') + '</div><p class="fine-print">約好了。收好窗邊的鑰匙，隔天先去辛亥生態公園。</p><button class="button primary full" id="chat-read">看完了，準備明天出門 →</button>');
+    body.querySelector('#chat-read')!.addEventListener('click', () => { p.talked = true; save(); closeModal(); updateHud(); });
+    return;
+  }
+  if (canDeliverErrand(p)) {
+    const body = showModal('李韋得', '<p class="success-quote">回到長椅旁，李韋得抬起頭：「買到了喔？」（暫定）</p><button class="button primary full" id="deliver-errand">把寶亨四號交給李韋得 →</button>');
+    body.querySelector('#deliver-errand')!.addEventListener('click', () => { if (canDeliverErrand(p)) completed(); });
+    return;
+  }
   const c = chapters[p.chapter];
   const lines = p.done ? [c.after] : c.dialogue;
   let page = 0;
@@ -96,15 +106,15 @@ function completed(recordOnly = false) {
   if (recordOnly) p.recorded = true; else p = completeChapter(p);
   save(); updateHud();
   const c = chapters[p.chapter];
-  const body = showModal(recordOnly ? '三個樂句，收好了。' : p.chapter === 7 ? '今天的聲音，準備好了。' : '把這一刻，帶著走。', `<div class="success-mark">✦</div><p class="success-quote">${html(recordOnly ? '王17：「這個感覺很好。到旁邊的工作桌，把聲音調到舒服的位置吧。」（暫定）' : c.after)}</p><p class="fine-print">${recordOnly ? '下一步：右前方工作桌，完成混音。' : p.chapter === 7 ? '下一步：靠近右邊的藍牙喇叭，播放新歌。' : '進度已記錄。門口通往下一位朋友。'}</p><button class="button primary full" id="success-close">${recordOnly ? '去混音' : p.chapter === 7 ? '去打開喇叭' : '繼續今天的旅程'} →</button>`);
+  const body = showModal(recordOnly ? '三個樂句，收好了。' : p.chapter === 7 ? '今天的聲音，準備好了。' : '把這一刻，帶著走。', `<div class="success-mark">✦</div><p class="success-quote">${html(recordOnly ? '王17：「這個感覺很好。到前方的工作桌，把聲音調到舒服的位置吧。」（暫定）' : c.after)}</p><p class="fine-print">${recordOnly ? '下一步：前方混音工作桌，完成混音。' : p.chapter === 7 ? '下一步：靠近右邊的藍牙喇叭，播放新歌。' : '進度已記錄。出口通往下一位朋友。'}</p><button class="button primary full" id="success-close">${recordOnly ? '去混音' : p.chapter === 7 ? '去打開喇叭' : '繼續今天的旅程'} →</button>`);
   body.querySelector('#success-close')!.addEventListener('click', closeModal);
 }
 function openPuzzle(kind: string) {
   if (!p.talked) { toast('先和朋友聊聊，看看今天有什麼故事。'); return; }
-  if (p.done) { toast(p.chapter === 7 ? '混音已完成，可以去點藍牙喇叭了。' : '這一站完成了，去門口繼續旅程吧。'); return; }
-  if ([2, 4, 5].includes(p.chapter) && !p.clueRead) { toast(`先到左前方窗邊，讀讀${chapters[p.chapter].clueName}。`); return; }
+  if (p.done) { toast(p.chapter === 7 ? '混音已完成，可以去點藍牙喇叭了。' : '這一站完成了，去出口繼續旅程吧。'); return; }
+  if ([2, 4, 5].includes(p.chapter) && !p.clueRead) { toast(`先找到金色標記，讀讀${chapters[p.chapter].clueName}。`); return; }
   if (kind === 'mix' && !p.recorded) { toast('先到麥克風前完成三句錄音，再來混音。'); return; }
-  if (kind === 'record' && p.recorded) { toast('錄音已收好。到右前方工作桌開始混音。'); return; }
+  if (kind === 'record' && p.recorded) { toast('錄音已收好。到前方混音工作桌開始混音。'); return; }
   const titles: Record<string, string> = { recipe: '甜一點，剛剛好。（暫定）', memory: '你還記得嗎？（暫定）', photo: '再拍一張吧。（暫定）', timeline: '那天，後來呢？（暫定）', rhythm: '跟上我們的節拍（暫定）', record: '把今天唱進去（暫定）', mix: '找到舒服的平衡（暫定）' };
   const body = showModal(titles[kind], '<div id="puzzle-mount"></div>', 'puzzle', true);
   cleanupModal = mountPuzzle(kind, { root: body.querySelector('#puzzle-mount')!, complete: () => completed(kind === 'record'), failures });
@@ -113,7 +123,7 @@ function nextChapter() {
   if (!p.done) { toast(p.chapter === 0 ? '出發前先看手機訊息，再拿好窗邊的鑰匙。' : '朋友的任務還沒完成，先把這一站的故事走完吧。'); return; }
   if (p.chapter === 7) { toast('今天的終點在那顆喇叭裡。一起聽歌吧。'); return; }
   const c = chapters[p.chapter], next = chapters[p.chapter + 1];
-  const body = showModal('下一站，還有人等你。', `<div class="travel-art"><span>▥</span><i></i><span>▥</span><div class="travel-bus">▰</div></div><p class="travel-copy">${html(c.transition)}${p.chapter > 0 ? '（暫定）' : ''}</p><div class="travel-destination"><small>NEXT STOP</small><strong>${html(next.place)}</strong></div><button class="button primary full" id="travel-next">${p.chapter === 6 ? '搭車前往新店' : '走，去下一站'} →</button>`, 'travel');
+  const body = showModal('下一站，還有人等你。', `<div class="travel-art"><span>▥</span><i></i><span>▥</span><div class="travel-bus">▰</div></div><p class="travel-copy">${html(c.transition)}${p.chapter > 0 ? '（暫定）' : ''}</p><div class="travel-destination"><small>NEXT STOP</small><strong>${html(next.place)}</strong></div><button class="button primary full" id="travel-next">${p.chapter === 0 ? '睡一覺，隔天去辛亥生態公園' : p.chapter === 6 ? '搭車前往新店' : '走，去下一站'} →</button>`, 'travel');
   body.querySelector('#travel-next')!.addEventListener('click', () => { p = advanceChapter(p); closeModal(); loadChapter(); toast(chapters[p.chapter].subtitle); });
 }
 function interact(id?: string) {
@@ -128,10 +138,13 @@ function interact(id?: string) {
   } else if (h === 'key') {
     if (!p.talked) { toast('手機還亮著。先讀一下朋友傳來的訊息。'); return; }
     p.collected = ['key']; p = completeChapter(p); save(); updateHud(); tone(660); toast('鑰匙拿好了！去右側門口，開始今天的旅程。');
-  } else if (['headphones', 'ticket', 'usb'].includes(h)) {
-    if (!p.talked) { toast('先和阿澄聊聊，問問他在找什麼。'); return; }
-    if (!p.collected.includes(h)) { p.collected.push(h); tone(520 + p.collected.length * 80); save(); updateHud(); toast(`找到了！${p.collected.length} / 3 件物品。`); }
-    if (p.collected.length === 3 && !p.done) completed();
+  } else if (h === 'shop') {
+    if (p.chapter !== 1) return;
+    if (!p.talked) { toast('先回公園找李韋得，問問他需要什麼。'); return; }
+    if (p.done || p.collected.includes(ERRAND_ITEM)) { toast(p.done ? '東西已經交給李韋得了。' : '已經買好了。回公園長椅旁交給李韋得。'); return; }
+    const body = showModal('7-ELEVEN 辛亥站門市 · 櫃檯', '<div class="shop-order"><div class="pack-model" aria-label="寶亨綠 SAWA 4 號像素包裝"><span>吸菸有害健康</span><strong>BOHEM</strong><b>SAWA No.4</b><small>GREEN</small></div><div><span class="eyebrow">李韋得的委託</span><h3>寶亨四號</h3><p>店員拿出一包，放在櫃檯上。（暫定）</p><p class="fine-print">綠 SAWA 4 號 · 依實物外觀製作的像素模型。</p></div></div><div class="puzzle-actions"><button class="button secondary" id="leave-shop">先不買</button><button class="button primary" id="buy-errand">買好，帶回公園 →</button>');
+    body.querySelector('#leave-shop')!.addEventListener('click', closeModal);
+    body.querySelector('#buy-errand')!.addEventListener('click', () => { p = purchaseErrand(p); save(); closeModal(); updateHud(); tone(660); toast('寶亨四號放進口袋。回公園交給李韋得。'); });
   } else if (h === 'puzzle') openPuzzle(['', '', 'recipe', 'memory', 'photo', 'timeline', 'rhythm'][p.chapter]);
   else if (h === 'record' || h === 'mix') openPuzzle(h);
   else if (h === 'speaker') { if (!p.done) toast('歌還沒準備好，先和王17完成錄音與混音。'); else showEnding(); }

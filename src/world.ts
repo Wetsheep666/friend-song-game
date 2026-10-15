@@ -1,11 +1,12 @@
 import * as THREE from 'three';
-import { assetUrl, type Chapter } from './content';
+import { type Chapter } from './content';
+import { buildLocation } from './locations';
 
 export interface Hotspot { id: string; label: string; x: number; z: number; marker: THREE.Sprite; disabled?: boolean; }
 interface Obstacle { x: number; z: number; w: number; d: number; }
 const palettes = ['#809a84', '#a5ad7d', '#668e80', '#c4a57e'];
 
-function canvasTexture(w: number, h: number, draw: (c: CanvasRenderingContext2D) => void) {
+export function canvasTexture(w: number, h: number, draw: (c: CanvasRenderingContext2D) => void) {
   const canvas = document.createElement('canvas'); canvas.width = w; canvas.height = h;
   draw(canvas.getContext('2d')!);
   const t = new THREE.CanvasTexture(canvas); t.magFilter = THREE.NearestFilter; t.minFilter = THREE.NearestFilter; t.colorSpace = THREE.SRGBColorSpace;
@@ -37,6 +38,7 @@ export class World {
   room = new THREE.Group();
   hotspots: Hotspot[] = [];
   obstacles: Obstacle[] = [];
+  bounds = { minX: -4.52, maxX: 4.52, minZ: -3.91, maxZ: 4.05 };
   yaw = 0;
   pitch = 0;
   menu = true;
@@ -49,7 +51,7 @@ export class World {
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.setClearColor('#a8c4bc');
     this.renderer.domElement.id = 'world';
-    this.renderer.domElement.setAttribute('aria-label', '第一人稱像素房間');
+    this.renderer.domElement.setAttribute('aria-label', '第一人稱像素世界');
     container.prepend(this.renderer.domElement);
     this.scene.fog = new THREE.Fog('#c2cbb4', 18, 48);
     this.scene.add(new THREE.HemisphereLight('#fff4d8', '#718777', 2.4));
@@ -127,6 +129,9 @@ export class World {
     geometries.forEach(g => g.dispose()); materials.forEach(m => m.dispose()); textures.forEach(t => t.dispose());
     this.room.clear(); this.hotspots = []; this.obstacles = [];
     this.camera.position.set(0, 1.58, 3.25); this.yaw = 0; this.pitch = 0;
+    this.bounds = { minX: -4.52, maxX: 4.52, minZ: -3.91, maxZ: 4.05 };
+    this.renderer.setClearColor(index === 0 ? '#a8c4bc' : '#b9d5d4');
+    if (index > 0) { buildLocation(this, chapter, index); return; }
     this.box(0, -.12, 0, 10.2, .22, 9, '#a58c68');
     for (let z = -4.2; z < 4.5; z += .48) for (let x = -4.9; x < 5; x += 1.8) {
       this.box(x + .85 + ((Math.round(z * 10) % 2) ? .15 : 0), .002, z, 1.77, .012, .45, ['#c4a780', '#bfa079', '#caae88', '#bea581'][Math.abs(Math.round(x * 11 + z * 13)) % 4]);
@@ -188,85 +193,12 @@ export class World {
     this.box(4.72, 1.2, 2.15, .09, 2.34, 1.4, '#9e7b58');
     this.box(4.66, 1.75, 2.15, .04, .92, 1.08, '#b4966d'); this.box(4.66, .65, 2.15, .04, .92, 1.08, '#b4966d');
     this.box(4.56, 1.15, 1.68, .16, .09, .09, '#e8c887');
-    // Small environmental details distinguish each friend's daily life.
-    if (index === 0) {
-      this.box(-3.8, .16, 2.75, .65, .3, .6, '#bca981');
-      this.box(-3.8, .32, 2.75, .65, .025, .6, '#d7bc8e');
-      this.book(-3.8, .37, 2.75, '#7d9889');
-    } else if (index === 2) {
-      // Kitchen cabinets, stove, and hanging mugs; existing desk acts as counter.
-      this.box(3, .44, -3, 2.4, .82, .88, '#d5c8a6');
-      for (let i = 0; i < 3; i++) { this.box(2.2 + i * .78, .47, -2.54, .69, .66, .045, '#ebe0bd'); this.box(2.2 + i * .78, .64, -2.5, .18, .04, .045, '#8b8e6c'); }
-      this.box(1.95, .93, -3, .65, .06, .7, '#5d6e60');
-      this.box(1.95, 1.04, -3, .42, .19, .4, '#889382');
-      this.box(1.95, 1.16, -3, .49, .05, .45, '#b9b9a0');
-      this.box(.62, 1.05, -1.45, .28, .17, .27, '#d9b77c');
-      for (let i = 0; i < 4; i++) this.box(1.8 + i * .4, 2.12, -4.02, .19, .23, .19, ['#e6d7ad','#a7b994','#d6ad8b','#9ab7ac'][i]);
-    } else if (index === 3) {
-      this.box(-4.25, .5, -2.3, .72, 1, .7, '#5c7380', true);
-      this.box(-4.25, 1.3, -2.45, .8, .68, .42, '#687d8b');
-      this.box(-4.25, 1.32, -2.2, .62, .43, .035, '#b0c8ab');
-      this.box(-4.25, 1, -2.05, .83, .1, .4, '#c6b7a0');
-      this.box(-4.4, 1.12, -2.05, .07, .2, .07, '#855957');
-      for (let i = 0; i < 4; i++) this.box(-4.42 + i * .12, 1.33, -2.17, .08, .08, .012, i % 2 ? '#7d9785' : '#d6bb89');
-    } else if (index === 4) {
-      for (let i = 0; i < 3; i++) this.picture(.1 + i * .49, 3.23, -4.17, .34, .42, i);
-      this.box(.35, 1.06, -1.39, .35, .24, .23, '#536255');
-      this.box(.35, 1.07, -1.24, .16, .16, .13, '#3e4f47');
-      this.plant(-4.22, -2.15, 0, true);
-      this.plant(1.22, -3.9, 0, true);
-    } else if (index === 5) {
-      for (let row = 0; row < 3; row++) {
-        this.box(-4.4, .55 + row * .63, -2.9, .74, .08, 1.65, '#9a825f');
-        for (let j = 0; j < 4; j++) this.box(-4.35, .74 + row * .63, -3.48 + j * .36, .48, .32, .25, ['#8c9a79','#c5ad80','#8eaca0','#c7bca1'][(j+row)%4]);
-      }
-      this.box(.35, 1.01, -1.4, .68, .19, .48, '#a17f58');
-      this.box(.35, 1.12, -1.4, .64, .04, .45, '#e6d3a5');
-    } else if (index >= 6) {
-      // Pixel upright piano and acoustic tiles, kept outside the walking route.
-      this.box(-4.17, .64, -2.75, .86, 1.28, 1.8, '#6b6b55', true);
-      this.box(-3.68, .89, -2.75, .2, .06, 1.73, '#e4dfc6');
-      for (let i = 0; i < 12; i++) this.box(-3.65, .94, -3.5 + i * .13, .14, .07, .06, '#536054');
-      this.box(-4.13, 1.31, -2.75, .93, .08, 1.9, '#867a5b');
-      for (let i = 0; i < 5; i++) this.box(1.6 + i * .4, 3.22, -4.23, .3, .55, .1, i % 2 ? '#637b70' : '#7e8e79');
-      if (index === 7) {
-        for (const x of [1.92, 3.5]) { this.box(x, 1.18, -3.19, .3, .48, .25, '#3f554a'); this.box(x, 1.18, -3.04, .17, .22, .04, '#778c70'); }
-        for (let i = 0; i < 6; i++) this.box(2.48 + i * .09, 1.18 + (i % 3) * .06, -3.065, .035, .12 + (i % 3) * .08, .012, '#d5bf8b');
-      }
-    }
-    if (index > 0) {
-      const texture = chapter.portrait ? new THREE.TextureLoader().load(assetUrl(chapter.portrait)) : portraitTexture(chapter.shirt, index);
-      texture.magFilter = THREE.NearestFilter; texture.minFilter = THREE.NearestFilter;
-      const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true, alphaTest: .1 }));
-      sprite.position.set(-1.75, 1.1, -.75); sprite.scale.set(1.35, 2.05, 1); this.room.add(sprite);
-      this.addHotspot('npc', chapter.name, -1.75, -.75, 2.34);
-    }
+    this.box(-3.8, .16, 2.75, .65, .3, .6, '#bca981');
+    this.book(-3.8, .37, 2.75, '#7d9889');
     this.addHotspot('clue', chapter.clueName, -2.15, -2.9, 1.28);
-    this.addHotspot('door', index === 7 ? '今天就在這裡，好好聽歌' : '前往下一站', 4.4, 2.15, 1.65);
-    if (index === 0) {
-      this.box(-1.8, .96, -2.8, .16, .03, .28, '#e4bd64'); this.addHotspot('key', '拿起鑰匙', -1.8, -2.7, 1.43);
-      this.box(.3, .98, -1.4, .22, .04, .36, '#364e48'); this.addHotspot('phone', '看看手機訊息', .3, -1.4, 1.35);
-    } else if (index === 1) {
-      this.addHotspot('headphones', '耳機（暫定）', -3.5, .3, 1.25);
-      this.addHotspot('ticket', '車票（暫定）', -1.85, -2.8, 1.48);
-      this.addHotspot('usb', '隨身碟（暫定）', 2.5, -2.55, 1.23);
-      this.box(-3.5, .95, .3, .3, .12, .28, '#444d45'); this.box(2.5, .95, -2.55, .14, .04, .22, '#e2b577');
-    } else if (index === 7) {
-      this.box(.4, 1.14, -1.45, .06, 1.35, .06, '#4b5550'); this.box(.4, 1.82, -1.45, .22, .38, .2, '#536b60');
-      this.box(.4, .17, -1.45, .6, .06, .5, '#59685b');
-      this.addHotspot('record', '麥克風 · 錄音（暫定）', .4, -1.45, 2.12);
-      this.addHotspot('mix', '工作桌 · 混音（暫定）', 2.65, -2.5, 1.72);
-      this.box(3.85, .39, .8, .9, .78, .65, '#b39770', true);
-      this.box(3.85, .94, .8, .72, .3, .33, '#3d5650'); this.box(3.85, .94, .98, .63, .22, .015, '#738477');
-      for (let i = 0; i < 6; i++) this.box(3.59 + i * .1, .94, .998, .025, .2, .01, '#40584f');
-      this.addHotspot('speaker', '藍牙喇叭 · 聽新歌', 3.85, .8, 1.42);
-      for (let i = 0; i < 6; i++) this.box(1.9 + i * .25, 1.72, -4.25, .15, .95, .07, '#5a6e64');
-    } else {
-      const labels = ['', '', '料理台 · 準備點心', '記憶玩具 · 亮燈挑戰', '布景板 · 重現合照', '相片盒 · 排列回憶', '節拍器 · 一起練習'];
-      this.addHotspot('puzzle', `${labels[index]}（暫定）`, .35, -1.35, 1.5);
-      this.box(.35, .99, -1.43, .7, .1, .4, index === 2 ? '#e4cf9d' : chapter.shirt);
-      if (index === 3) for (let i = 0; i < 4; i++) this.box(.07 + i * .18, 1.07, -1.43, .12, .07, .18, ['#e5bf76', '#96b490', '#86aebf', '#bfabd0'][i]);
-    }
+    this.addHotspot('door', '收好鑰匙，隔天出門', 4.4, 2.15, 1.65);
+    this.box(-1.8, .96, -2.8, .16, .03, .28, '#e4bd64'); this.addHotspot('key', '拿起鑰匙', -1.8, -2.7, 1.43);
+    this.box(.3, .98, -1.4, .22, .04, .36, '#364e48'); this.addHotspot('phone', '看看群組訊息', .3, -1.4, 1.35);
   }
   hide(id: string) { const h = this.hotspots.find(h => h.id === id); if (h) { h.disabled = true; h.marker.visible = false; } }
   nearest(): Hotspot | undefined {
@@ -289,7 +221,7 @@ export class World {
     const dx = (x * Math.cos(this.yaw) + z * Math.sin(this.yaw)) * dt * 2.4;
     const dz = (-x * Math.sin(this.yaw) + z * Math.cos(this.yaw)) * dt * 2.4;
     const p = this.camera.position;
-    const clear = (px: number, pz: number) => Math.abs(px) < 4.52 && pz > -3.91 && pz < 4.05 && !this.obstacles.some(o => Math.abs(px - o.x) < o.w / 2 + .23 && Math.abs(pz - o.z) < o.d / 2 + .23);
+    const clear = (px: number, pz: number) => px > this.bounds.minX && px < this.bounds.maxX && pz > this.bounds.minZ && pz < this.bounds.maxZ && !this.obstacles.some(o => Math.abs(px - o.x) < o.w / 2 + .23 && Math.abs(pz - o.z) < o.d / 2 + .23);
     if (clear(p.x + dx, p.z)) p.x += dx;
     if (clear(p.x, p.z + dz)) p.z += dz;
   }
