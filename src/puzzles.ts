@@ -144,7 +144,7 @@ export function mountPuzzle(kind: string, host: PuzzleHost): () => void {
       catch { tracks.forEach(a => a.pause()); status('音軌暫時無法播放，可再試一次；仍可完成混音。'); }
       finally { b.disabled = false; }
     });
-    on('#finish-mix', () => { if (validMix(levels, gameConfig.mixTarget)) finish(); else status('再微調一下。可先關閉面板，到窗邊看看混音工作筆記。'); });
+    on('#finish-mix', () => { if (validMix(levels, gameConfig.mixTarget)) finish(); else status('再微調一下。可先關閉面板，到右側小桌看看混音工作筆記。'); });
     cleanups.push(() => tracks.forEach(a => { a.pause(); a.removeAttribute('src'); a.load(); }));
   }
   return () => { stopped = true; abort.abort(); timers.forEach(clearTimeout); cleanups.forEach(fn => fn()); };
